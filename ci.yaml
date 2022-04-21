@@ -1,0 +1,41 @@
+---
+name: Java CI
+
+on: [push, pull_request]
+
+jobs:
+  test:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-18.04]
+        java: [8, 11, 17]
+      fail-fast: false
+      max-parallel: 4
+    name: Test JDK ${{ matrix.java }}, ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v2
+      - name: Set up JDK
+        uses: actions/setup-java@v1
+        with:
+          java-version: ${{ matrix.java }}
+      - uses: actions/cache@v2
+        env:
+          cache-name: cache-maven-modules
+        with:
+          path: ~/.m2/repository
+          key: ${{ runner.os }}-build-${{ env.cache-name }}-maven-${{ hashFiles('**/pom.xml') }}
+          restore-keys: |
+            ${{ runner.os }}-build-${{ env.cache-name }}-
+            ${{ runner.os }}-build-
+            ${{ runner.os }}
+      - name: Test with Maven
+        run: mvn test -B
+      - name: Generate code coverage
+        run: mvn -Pgen-code-cov clean test jacoco:report
+      # https://github.com/marketplace/actions/codecov
+      - uses: codecov/codecov-action@v2
+        with:
+          name: codecov-umbrella
+          token: ${{ secrets.CODECOV_TOKEN }}
